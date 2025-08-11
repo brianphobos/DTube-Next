@@ -4,8 +4,9 @@ import ChannelHeader from '@/components/ChannelHeader';
 
 const ChannelGrid = dynamic(() => import('@/components/ChannelGrid'), { ssr: false });
 
-export default async function ChannelPage({ params }: { params: { username: string } }) {
-  const user = params.username.replace(/^@/, '');
+export default async function ChannelPage({ params }: { params: { handle: string } }) {
+  // supports /brian and /@brian in the URL
+  const user = params.handle.replace(/^@/, '');
   const account = await getAccount(user);
 
   return (
