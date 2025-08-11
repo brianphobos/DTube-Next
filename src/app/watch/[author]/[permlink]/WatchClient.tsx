@@ -1,14 +1,8 @@
-import { useEffect, useState } from 'react';
-import { getContent } from '@/lib/api';
-
-// inside component:
-const [full, setFull] = useState<any>(null);
-useEffect(() => { getContent(video.author, video.permlink).then(setFull).catch(()=>setFull(null)); }, [video.author, video.permlink]);
-
-// then prefer full?.title / full?.json?.thumbnail where available
-
+// src/app/watch/[author]/[permlink]/WatchClient.tsx
 'use client';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getContent } from '@/lib/api';
 import { useQueue } from '@/components/QueueProvider';
 import { useToast } from '@/components/ToastProvider';
 import ShareMenu from '@/components/ShareMenu';
@@ -28,9 +22,25 @@ export default function WatchClient({ video }: { video: VideoLike }) {
   const toast = useToast();
   const { add, next, peek } = useQueue();
 
-  const embUrl = useMemo(() => `https://emb.d.tube/#!/${video.author}/${video.permlink}`, [video]);
+  // Load full content on the client
+  const [full, setFull] = useState<any>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getContent(video.author, video.permlink)
+      .then((v) => { if (!cancelled) setFull(v); })
+      .catch(() => { if (!cancelled) setFull(null); });
+    return () => { cancelled = true; };
+  }, [video.author, video.permlink]);
+
+  const data = full || video;
+  const title = (data as any)?.title || 'Video';
+  const json = (data as any)?.json || {};
+  const embUrl = useMemo(
+    () => `https://emb.d.tube/#!/${video.author}/${video.permlink}`,
+    [video.author, video.permlink]
+  );
   const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const durationSec = Number((video as any)?.json?.duration || 0);
+  const durationSec = Number(json?.duration || 0);
   const [autoNextEnabled, setAutoNextEnabled] = useState(getAutoNext());
 
   useEffect(() => {
@@ -45,6 +55,7 @@ export default function WatchClient({ video }: { video: VideoLike }) {
     else toast({ title: 'Queue ended' });
   }
 
+  // Listen for "ended" postMessages from the DTube embed
   useEffect(() => {
     function onMessage(ev: MessageEvent) {
       try {
@@ -65,9 +76,10 @@ export default function WatchClient({ video }: { video: VideoLike }) {
     return () => window.removeEventListener('message', onMessage);
   }, [embUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Time-based auto-next fallback if the embed doesn't postMessage
   useEffect(() => {
     if (!getAutoNext()) return;
-    const isShort = !!(video as any)?.json?.video?.short || /shorts|tiktok|reel/i.test(String((video as any)?.json?.video?.provider || ''));
+    const isShort = !!json?.video?.short || /shorts|tiktok|reel/i.test(String(json?.video?.provider || ''));
     const assumed = isShort ? 180 : 480;
     const dur = durationSec > 30 ? durationSec : assumed;
 
@@ -82,7 +94,7 @@ export default function WatchClient({ video }: { video: VideoLike }) {
     }, dur * 1000);
 
     return () => { clearTimeout(warnT); clearTimeout(nextT); };
-  }, [durationSec, (video as any)?.json?.video?.short, (video as any)?.json?.video?.provider]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [durationSec, json?.video?.short, json?.video?.provider]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-4">
@@ -101,10 +113,10 @@ export default function WatchClient({ video }: { video: VideoLike }) {
           onClick={() => {
             add({
               id: `${video.author}/${video.permlink}`,
-              title: (video as any).title || 'Untitled',
+              title: title || 'Untitled',
               author: video.author,
               href: pageUrl,
-              thumbnail: (video as any)?.json?.thumbnail || (video as any)?.thumbnail,
+              thumbnail: json?.thumbnail || (data as any)?.thumbnail,
             });
             toast({ variant: 'success', title: 'Added to queue' });
           }}
@@ -115,12 +127,12 @@ export default function WatchClient({ video }: { video: VideoLike }) {
 
         <button onClick={goNext} className="px-3 py-1.5 rounded-2xl bg-white text-black">Next ▶</button>
 
-        <ShareMenu url={pageUrl} title={(video as any)?.title || 'Video'} />
+        <ShareMenu url={pageUrl} title={title || 'Video'} />
         <div className="ml-auto"><AutoNextToggle /></div>
       </div>
 
       <div className="bg-card rounded-2xl p-4">
-        <h1 className="text-xl font-semibold">{(video as any).title || 'Video'}</h1>
+        <h1 className="text-xl font-semibold">{title}</h1>
         <div className="text-sm text-neutral-400 mt-1">
           by <a className="hover:underline" href={`/@${video.author}`}>@{video.author}</a>
         </div>
@@ -131,3 +143,4 @@ export default function WatchClient({ video }: { video: VideoLike }) {
     </div>
   );
 }
+
