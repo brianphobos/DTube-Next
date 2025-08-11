@@ -13,7 +13,9 @@ const nextConfig = {
     config.resolve = config.resolve || {};
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
-      eccrypto: require.resolve('eccrypto-js'), // ⬅️ key line
+      // Map native "eccrypto" to a browser-safe polyfill
+      eccrypto: 'eccrypto-js',
+      // prevent native modules from being pulled in
       secp256k1: false,
       fs: false,
       path: false,
