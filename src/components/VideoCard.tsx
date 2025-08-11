@@ -1,23 +1,24 @@
+// src/components/VideoCard.tsx
 'use client';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useQueue } from '@/components/QueueProvider';
+import { useState } from 'react';
 
 export default function VideoCard({ video }: { video: any }) {
   const { add } = useQueue();
-  const item = {
-    id: video.id,
-    title: video.title,
-    author: video.author,
-    href: `/watch/${video.id}`,
-    thumbnail: video.thumbnail,
-  };
+  const [src, setSrc] = useState(video.thumbnail || '/logo.svg');
+  const item = { id: video.id, title: video.title, author: video.author, href: `/watch/${video.id}`, thumbnail: src };
 
   return (
     <div className="group bg-card rounded-2xl overflow-hidden shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
       <Link href={`/watch/${video.id}`}>
         <div className="relative aspect-video bg-neutral-900">
-          <Image src={video.thumbnail} alt={video.title} fill className="object-cover" />
+          <img
+            src={src}
+            alt={video.title}
+            className="w-full h-full object-cover"
+            onError={() => setSrc('/logo.svg')}
+          />
         </div>
       </Link>
       <div className="p-3">
