@@ -17,9 +17,9 @@ export default function ChannelHeader({ account }: { account: any }) {
           <p className="text-sm text-neutral-300 mt-1 line-clamp-2">{about}</p>
           <div className="mt-3 flex items-center gap-3">
             <FollowButton username={username} />
-            <Link href={`/@${username}?tab=about`} className="text-sm text-neutral-300 hover:underline">
+              <Link href={`/${username}/about`} className="text-sm text-neutral-300 hover:underline">
               About
-            </Link>
+              </Link>
           </div>
         </div>
       </div>
