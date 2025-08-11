@@ -1,40 +1,40 @@
 import { getAvalon } from './avalon';
 
-export async function getHotDiscussions(limit = 25, start_author?: string, start_permlink?: string) {
+/** HOT (popular). `limit` is sliced client-side. */
+export async function getHotDiscussions(limit = 25, start_author?: string | null, start_permlink?: string | null) {
   const javalon = await getAvalon();
-  return new Promise((resolve, reject) => {
+  return new Promise<any[]>((resolve, reject) => {
     try {
-      (javalon as any).getHotDiscussions({ limit, start_author, start_permlink }, (err: any, res: any) =>
-        err ? reject(err) : resolve(res)
+      (javalon as any).getHotDiscussions(start_author || null, start_permlink || null, (err: any, res: any[]) =>
+        err ? reject(err) : resolve((res || []).slice(0, limit))
       );
     } catch (e) {
-      (javalon as any).getHotDiscussions(null, null, (err: any, res: any) => err ? reject(err) : resolve(res));
+      reject(e);
     }
   });
 }
 
-export async function getNewDiscussions(limit = 25) {
+/** NEW (by creation time). */
+export async function getNewDiscussions(limit = 25, start_author?: string | null, start_permlink?: string | null) {
   const javalon = await getAvalon();
-  return new Promise((resolve, reject) => {
-    try {
-      (javalon as any).getNewDiscussions({ limit }, (err: any, res: any) => err ? reject(err) : resolve(res));
-    } catch {
-      (javalon as any).getNewDiscussions(null, null, (err: any, res: any) => err ? reject(err) : resolve(res));
-    }
+  return new Promise<any[]>((resolve, reject) => {
+    (javalon as any).getNewDiscussions(start_author || null, start_permlink || null, (err: any, res: any[]) =>
+      err ? reject(err) : resolve((res || []).slice(0, limit))
+    );
   });
 }
 
-export async function getFeedDiscussions(username: string, limit = 25) {
+/** FEED (followed accounts of `username`). */
+export async function getFeedDiscussions(username: string, limit = 25, start_permlink?: string | null) {
   const javalon = await getAvalon();
-  return new Promise((resolve, reject) => {
-    try {
-      (javalon as any).getFeedDiscussions(username, { limit }, (err: any, res: any) => err ? reject(err) : resolve(res));
-    } catch {
-      (javalon as any).getFeedDiscussions(username, null, null, (err: any, res: any) => err ? reject(err) : resolve(res));
-    }
+  return new Promise<any[]>((resolve, reject) => {
+    (javalon as any).getFeedDiscussions(username, start_permlink || null, (err: any, res: any[]) =>
+      err ? reject(err) : resolve((res || []).slice(0, limit))
+    );
   });
 }
 
+/** Single content. */
 export async function getContent(author: string, permlink: string) {
   const javalon = await getAvalon();
   return new Promise((resolve, reject) => {
@@ -44,6 +44,7 @@ export async function getContent(author: string, permlink: string) {
   });
 }
 
+/** Replies. */
 export async function getContentReplies(author: string, permlink: string) {
   const javalon = await getAvalon();
   return new Promise((resolve, reject) => {
@@ -53,6 +54,7 @@ export async function getContentReplies(author: string, permlink: string) {
   });
 }
 
+/** Single account. */
 export async function getAccount(username: string) {
   const javalon = await getAvalon();
   return new Promise((resolve) => {
@@ -60,23 +62,22 @@ export async function getAccount(username: string) {
   });
 }
 
-export async function getDiscussionsByAuthor(username: string, limit = 24) {
+/** Author’s posts. */
+export async function getDiscussionsByAuthor(username: string, limit = 24, start_permlink?: string | null) {
   const javalon = await getAvalon();
-  return new Promise((resolve, reject) => {
-    const cb = (err: any, res: any) => (err ? reject(err) : resolve(res));
-    try {
-      (javalon as any).getDiscussionsByAuthor(username, { limit }, cb);
-    } catch {
-      (javalon as any).getDiscussionsByAuthor(username, null, null, cb);
-    }
+  return new Promise<any[]>((resolve, reject) => {
+    (javalon as any).getDiscussionsByAuthor(username, start_permlink || null, (err: any, res: any[]) =>
+      err ? reject(err) : resolve((res || []).slice(0, limit))
+    );
   });
 }
 
+/** Followers count (fallback to 0 if method not present). */
 export async function getFollowersCount(username: string) {
   const javalon = await getAvalon();
   return new Promise<number>((resolve) => {
     if (!(javalon as any).getFollowers) return resolve(0);
-    (javalon as any).getFollowers(username, null, 1000, (_e: any, list: any[]) => {
+    (javalon as any).getFollowers(username, ( _e: any, list: any[]) => {
       resolve(Array.isArray(list) ? list.length : 0);
     });
   });
