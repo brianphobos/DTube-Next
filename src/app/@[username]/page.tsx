@@ -5,9 +5,17 @@ import ChannelHeader from '@/components/ChannelHeader';
 const ChannelGrid = dynamic(() => import('@/components/ChannelGrid'), { ssr: false });
 
 export default async function ChannelPage({ params }: { params: { handle: string } }) {
-  // supports /brian and /@brian in the URL
+  // params.handle will be 'brianphobos' or '@brianphobos'
   const user = params.handle.replace(/^@/, '');
   const account = await getAccount(user);
+
+  if (!account) {
+    return (
+      <div className="p-8 text-center text-red-400">
+        Channel @{user} not found.
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1200px] mx-auto">
