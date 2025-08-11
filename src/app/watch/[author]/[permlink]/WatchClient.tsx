@@ -109,6 +109,7 @@ export default function WatchClient({ video }: { video: VideoLike }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+       
         <button
           onClick={() => {
             add({
@@ -117,6 +118,7 @@ export default function WatchClient({ video }: { video: VideoLike }) {
               author: video.author,
               href: pageUrl,
               thumbnail: json?.thumbnail || (data as any)?.thumbnail,
+              thumbnail: withFallbackThumb(getSafeThumbFromJson(json) || (data as any)?.thumbnail),
             });
             toast({ variant: 'success', title: 'Added to queue' });
           }}
