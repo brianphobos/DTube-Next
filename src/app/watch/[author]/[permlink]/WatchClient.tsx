@@ -1,4 +1,3 @@
-// src/app/watch/[author]/[permlink]/WatchClient.tsx
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -9,6 +8,7 @@ import ShareMenu from '@/components/ShareMenu';
 import VoteButton from '@/components/VoteButton';
 import AutoNextToggle, { getAutoNext } from '@/components/AutoNextToggle';
 import { getSafeThumbFromJson, withFallbackThumb } from '@/lib/thumb';
+import { parseLink } from '@/lib/links';
 
 type VideoLike = {
   author: string;
@@ -18,16 +18,15 @@ type VideoLike = {
   thumbnail?: string;
 };
 
-function buildEmbedCandidates(author: string, permlink: string) {
-  const a = author.replace(/^@/, '');
-  return [
-    // primary (dtube embed)
-    `https://emb.d.tube/#!/v/${a}/${permlink}`,
-    // legacy variant
-    `https://emb.d.tube/#!/${a}/${permlink}`,
-    // last-ditch fallback
-    `https://d.tube/#!/v/${a}/${permlink}`,
-  ];
+function buildYouTubeEmbed(id: string) {
+  // modest branding + inline playback
+  const params = new URLSearchParams({
+    rel: '0',
+    modestbranding: '1',
+    playsinline: '1',
+    enablejsapi: '1',
+  });
+  return `https://www.youtube.com/embed/${id}?${params.toString()}`;
 }
 
 export default function WatchClient({ video }: { video: VideoLike }) {
@@ -40,7 +39,12 @@ export default function WatchClient({ video }: { video: VideoLike }) {
   useEffect(() => {
     let cancelled = false;
     getContent(video.author, video.permlink)
-      .then((v) => { if (!cancelled) { setFull(v); (window as any).__lastVideoJSON = (v as any)?.json; } })
+      .then((v) => {
+        if (!cancelled) {
+          setFull(v);
+          (window as any).__lastVideoJSON = (v as any)?.json;
+        }
+      })
       .catch(() => { if (!cancelled) setFull(null); });
     return () => { cancelled = true; };
   }, [video.author, video.permlink]);
@@ -49,28 +53,17 @@ export default function WatchClient({ video }: { video: VideoLike }) {
   const json = (data as any)?.json || {};
   const title = (data as any)?.title || json?.title || 'Video';
 
-  // Embed URL with auto-fallbacks
-  const [srcIndex, setSrcIndex] = useState(0);
-  const embedList = useMemo(() => buildEmbedCandidates(video.author, video.permlink), [video.author, video.permlink]);
-  const embUrl = embedList[srcIndex];
-
-  useEffect(() => {
-    let timedOut = false;
-    const t = setTimeout(() => {
-      timedOut = true;
-      setSrcIndex((i) => Math.min(i + 1, embedList.length - 1));
-    }, 4000);
-
-    const onLoad = () => { if (!timedOut) clearTimeout(t); };
-    const el = iframeRef.current;
-    el?.addEventListener?.('load', onLoad);
-    return () => { clearTimeout(t); el?.removeEventListener?.('load', onLoad as any); };
-  }, [embUrl, embedList.length]);
+  // Determine provider & build embed URL (YouTube only for now)
+  const source = String(json?.video?.source || json?.source || '');
+  const parsed = useMemo(() => parseLink(source), [source]);
+  const youtubeId = parsed.provider === 'youtube' ? (new URL(parsed.normalizedUrl).searchParams.get('v') || parsed.normalizedUrl.split('/').pop() || '') : '';
+  const canPlayInline = parsed.provider === 'youtube' && !!youtubeId;
+  const embedSrc = canPlayInline ? buildYouTubeEmbed(youtubeId as string) : '';
 
   // Page URL (for Share + Queue)
   const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
 
-  // Auto-next logic
+  // Auto-next logic (time-based; we can’t read YT time without postMessage API wiring)
   const durationSec = Number(json?.duration || 0);
   useEffect(() => {
     if (!getAutoNext()) return;
@@ -94,29 +87,6 @@ export default function WatchClient({ video }: { video: VideoLike }) {
     return () => { clearTimeout(warnT); clearTimeout(nextT); };
   }, [durationSec, json?.video?.short, json?.video?.provider, next, peek, toast]);
 
-  // Also react to postMessages from the embed signaling "ended"
-  useEffect(() => {
-    function onMessage(ev: MessageEvent) {
-      try {
-        const origin = new URL(embUrl).origin;
-        if (ev.origin !== origin) return;
-      } catch { return; }
-
-      const d: any = ev.data;
-      const tag = (typeof d === 'string') ? d.toLowerCase() :
-                  (typeof d === 'object' && (d.event || d.type || d.action)) ?
-                    String(d.event || d.type || d.action).toLowerCase() : '';
-      if (tag.includes('ended') || tag.includes('finish')) {
-        if (getAutoNext()) {
-          const n = next();
-          if (n) window.location.href = n.href;
-        }
-      }
-    }
-    window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
-  }, [embUrl, next]);
-
   // Derived thumbnail (for queue item)
   const thumb = withFallbackThumb(getSafeThumbFromJson(json) || (data as any)?.thumbnail);
 
@@ -139,14 +109,28 @@ export default function WatchClient({ video }: { video: VideoLike }) {
 
   return (
     <div className="space-y-4">
-      <div className="aspect-video w-full bg-black rounded-2xl overflow-hidden">
-        <iframe
-          ref={iframeRef}
-          src={embUrl}
-          className="w-full h-full"
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowFullScreen
-        />
+      <div className="aspect-video w-full bg-black rounded-2xl overflow-hidden flex items-center justify-center">
+        {canPlayInline ? (
+          <iframe
+            ref={iframeRef}
+            src={embedSrc}
+            className="w-full h-full"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowFullScreen
+          />
+        ) : (
+          <div className="p-6 text-center">
+            <div className="text-white font-medium mb-2">This video can’t be embedded here (provider: {parsed.provider}).</div>
+            {source ? (
+              <a className="inline-block px-3 py-1.5 rounded-2xl bg-white text-black font-medium"
+                 href={source} target="_blank" rel="noopener noreferrer">
+                Open original source
+              </a>
+            ) : (
+              <div className="text-neutral-400 text-sm">No source URL found in post metadata.</div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -171,4 +155,3 @@ export default function WatchClient({ video }: { video: VideoLike }) {
     </div>
   );
 }
-
