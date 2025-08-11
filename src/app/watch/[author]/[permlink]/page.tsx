@@ -1,11 +1,11 @@
-import { getContent } from '@/lib/api';
-import WatchClient from './WatchClient';
+// src/app/watch/[author]/[permlink]/page.tsx
+import dynamic from 'next/dynamic';
+const WatchClient = dynamic(() => import('./WatchClient'), { ssr: false });
 
-export default async function WatchPage({ params }: { params: { author: string; permlink: string } }) {
-  const video: any = await getContent(params.author, params.permlink);
+export default function WatchPage({ params }: { params: { author: string; permlink: string } }) {
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
-      <WatchClient video={{ ...video, permlink: params.permlink }} />
+      <WatchClient video={{ author: params.author, permlink: params.permlink }} />
     </div>
   );
 }
