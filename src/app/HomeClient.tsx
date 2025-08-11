@@ -7,9 +7,7 @@ import { getSafeThumbFromJson, withFallbackThumb } from '@/lib/thumb';
 export default function HomeClient() {
   const [items, setItems] = useState<any[]>([]);
   useEffect(() => {
-    getHotDiscussions(24 as any)
-      .then((r:any)=>setItems(r||[]))
-      .catch(()=>setItems([]));
+    getHotDiscussions(24 as any).then((r:any)=>setItems(r||[])).catch(()=>setItems([]));
   }, []);
 
   const videos = (items||[]).map((c:any)=>({
@@ -22,7 +20,7 @@ export default function HomeClient() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {videos.map((v) => <VideoCard key={v.id} video={v} />)}
+      {videos.map(v => <VideoCard key={v.id} video={v} />)}
     </div>
   );
 }
