@@ -1,3 +1,12 @@
+import { useEffect, useState } from 'react';
+import { getContent } from '@/lib/api';
+
+// inside component:
+const [full, setFull] = useState<any>(null);
+useEffect(() => { getContent(video.author, video.permlink).then(setFull).catch(()=>setFull(null)); }, [video.author, video.permlink]);
+
+// then prefer full?.title / full?.json?.thumbnail where available
+
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueue } from '@/components/QueueProvider';
