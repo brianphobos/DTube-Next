@@ -1,7 +1,7 @@
 import { getAccount, getFollowersCount } from '@/lib/api';
 
-export default async function ChannelAbout({ params }: { params: { username: string } }) {
-  const user = params.username.replace(/^@/, '');
+export default async function ChannelAbout({ params }: { params: { handle: string } }) {
+  const user = params.handle.replace(/^@/, '');
   const [account, followers] = await Promise.all([
     getAccount(user),
     getFollowersCount(user),
