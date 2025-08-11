@@ -1,6 +1,6 @@
 // src/app/watch/[author]/[permlink]/WatchClient.tsx
 'use client';
-
+import { getSafeThumbFromJson, withFallbackThumb } from '@/lib/thumb';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getContent } from '@/lib/api';
 import { useQueue } from '@/components/QueueProvider';
